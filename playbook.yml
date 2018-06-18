@@ -1,0 +1,98 @@
+---
+- hosts: development
+
+  # Prerequisitos solo para Windows 7:  Service Pack 1 - .NET 4.5 - PowerShell 4.0
+  # 1) Descargar el script de https://github.com/ansible/ansible/raw/devel/examples/scripts/ConfigureRemotingForAnsible.ps1 en la carpeta mis documentos
+  # 2) Asegurarse que el archivo tenga la extension .ps1 y no .ps1.txt sino cambiar a la extension correcta.
+  # 3) Mover al directorio C:/
+  # 4) Abrir powershell como administrador y cambiar al directorio c://
+  # 5) Ejecutar el siguiente comando: powershell.exe  -ExecutionPolicy Bypass -File ConfigureRemotingForAnsible.ps1 -CertValidityDays 3650 -Verbose
+
+  # all) Ejecutar como administrador:
+  # powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "iex ((new-object net.webclient).DownloadString('https://github.com/ansible/ansible/raw/devel/examples/scripts/ConfigureRemotingForAnsible.ps1'))"
+  tasks:
+    # Windows Setup
+    # 1) Desinstalar nodejs completamente
+    # 2) Instalar chocolatey :: Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+    # 3) Instalar python2 (extra) :: choco install python2
+    # 4) Instalar java jdk8 (extra) :: choco install jdk8
+    # 6) Instalar android studio (extra) :: choco install androidstudio
+    # 7) Instalar android-sdk (extra) :: choco install android-sdk
+    # 8) Instalar manualmente sdk-api desde android studio GUI (extra)
+    # 9) Configurar variable de entorno ANDROID_HOME (extra) :: C:\Users\hramos\AppData\Local\Android\Sdk
+    # 10) Instalar nvm-windows:: choco install nvm or https://github.com/coreybutler/nvm-windows/releases/download/1.1.5/nvm-setup.zip
+    # 11) Instalar en cmd como administrador node LTS - Latest :: nvm install 8.11.3 (--lts) :: nvm install latest (node)
+    # 12) Instalar yarn :: choco install yarn
+    # 13) Instalar react-native-cli :: yarn global add react-native-cli
+    # 14) Crear un nuevo proyecto :: reac-native init AwesomeProject
+
+    - name: Install chocolatey
+      win_chocolatey:
+        name: chocolatey
+        state: latest
+
+    - name: Install Git VCS
+      win_chocolatey:
+        name: git
+        state: latest
+
+    - name: Install programs needed - react native
+      win_chocolatey:
+        name: "{{ item }}"
+        state: latest
+      with_items:
+        - python2
+        - jdk8
+        - androidstudio
+        - android-sdk
+
+    - name: Install nvm
+      win_chocolatey:
+        name: nvm
+        state: latest
+
+    - name: Turn on nvm as Administrator
+      become: true
+      win_command: nvm on
+
+    - name: Install node 8.11.3 (--lts)
+      become: true
+      win_command: "nvm install {{ item }}"
+      register: node_vlts_result
+      changed_when: "not node_vlts_result.stdout is search('is already installed')"
+      with_items:
+        - 8.11.3
+
+    - name: Install node latest (node)
+      become: true
+      win_command: "nvm install {{ item }}"
+      register: node_vnode_result
+      changed_when: "not node_vnode_result.stdout is search('is already installed')"
+      with_items:
+        - latest
+
+    - name: Use node lts version
+      become: true
+      win_command: nvm use 8.11.3
+
+    - name: Install Yarn
+      win_chocolatey:
+        name: yarn
+        state: latest
+
+    - name: Install react-native-cli
+      win_shell: yarn global add react-native-cli
+      register: yarn_install_rn_result
+      changed_when: "not yarn_install_rn_result.stdout is search('\nDone in 1.')"
+
+    - name: Create directory react-native apps
+      win_file:
+        path: 'C:\Users\{{ ansible_user }}\Reac-Native-Apps'
+        state: directory
+
+    - name: Create first app using react-native-cli
+      win_shell: react-native init AwesomeProject
+      args:
+        chdir: 'C:\Users\{{ ansible_user }}\Reac-Native-Apps'
+      tags:
+        - create_app
